@@ -239,26 +239,20 @@ class GoogleFormAutomation {
             }
             
             if (!buttonFound) {
-                // Альтернативный подход без XPath
-                const nextButton = await this.page.evaluate(() => {
+                // Альтернативный подход - поиск и клик в одном evaluate
+                buttonFound = await this.page.evaluate(() => {
                     const buttons = document.querySelectorAll('div[role="button"], span[role="button"], div[jsname]');
                     for (let button of buttons) {
                         const text = button.textContent?.trim().toLowerCase();
                         if (text && (text.includes('далее') || text.includes('next') || 
                                     text.includes('продолжить') || text.includes('continue'))) {
-                            return button;
+                            button.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            button.click();
+                            return true;
                         }
                     }
-                    return null;
+                    return false;
                 });
-                
-                if (nextButton) {
-                    await this.page.evaluate((button) => {
-                        button.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        button.click();
-                    }, nextButton);
-                    buttonFound = true;
-                }
             }
             
             if (!buttonFound) {
