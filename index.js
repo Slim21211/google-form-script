@@ -239,33 +239,25 @@ class GoogleFormAutomation {
             }
             
             if (!buttonFound) {
-                const xpathSelectors = [
-                    "//div[contains(text(), 'Далее')]",
-                    "//span[contains(text(), 'Далее')]",
-                    "//div[contains(text(), 'Next')]",
-                    "//span[contains(text(), 'Next')]",
-                    "//div[contains(text(), 'Продолжить')]",
-                    "//span[contains(text(), 'Продолжить')]"
-                ];
-                
-                for (const xpath of xpathSelectors) {
-                    const xpathButtons = await this.page.$x(xpath);
-                    if (xpathButtons.length > 0) {
-                        for (const button of xpathButtons) {
-                            const buttonText = await button.evaluate(el => el.textContent?.trim());
-                            
-                            if (buttonText.toLowerCase().includes('далее') || 
-                                buttonText.toLowerCase().includes('next') || 
-                                buttonText.toLowerCase().includes('продолжить')) {
-                                
-                                await button.click();
-                                buttonFound = true;
-                                break;
-                            }
+                // Альтернативный подход без XPath
+                const nextButton = await this.page.evaluate(() => {
+                    const buttons = document.querySelectorAll('div[role="button"], span[role="button"], div[jsname]');
+                    for (let button of buttons) {
+                        const text = button.textContent?.trim().toLowerCase();
+                        if (text && (text.includes('далее') || text.includes('next') || 
+                                    text.includes('продолжить') || text.includes('continue'))) {
+                            return button;
                         }
-                        
-                        if (buttonFound) break;
                     }
+                    return null;
+                });
+                
+                if (nextButton) {
+                    await this.page.evaluate((button) => {
+                        button.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        button.click();
+                    }, nextButton);
+                    buttonFound = true;
                 }
             }
             
@@ -321,7 +313,7 @@ class GoogleFormAutomation {
             let submitFound = false;
             
             for (const selector of submitSelectors) {
-                const elements = await this.page.$$(selector);
+                const elements = await this.page.$(selector);
                 
                 for (let element of elements) {
                     const text = await element.evaluate(el => el.textContent?.trim());
@@ -340,12 +332,49 @@ class GoogleFormAutomation {
             }
             
             if (!submitFound) {
-                // Исправлено: используем page.$x вместо this.page.$x
-                const xpathSubmit = await this.page.$x("//div[contains(text(), 'Отправить')] | //span[contains(text(), 'Отправить')] | //div[contains(text(), 'Submit')] | //span[contains(text(), 'Submit')]");
+                // Альтернативный подход без XPath
+                const submitButton = await this.page.evaluate(() => {
+                    const buttons = document.querySelectorAll('div[role="button"], span[role="button"]');
+                    for (let button of buttons) {
+                        const text = button.textContent?.trim().toLowerCase();
+                        if (text && (text.includes('отправить') || text.includes('submit') || text.includes('send'))) {
+                            return button;
+                        }
+                    }
+                    return null;
+                });
                 
-                if (xpathSubmit.length > 0) {
-                    await xpathSubmit[0].click();
-                    console.log('Кнопка отправки найдена через XPath');
+                if (submitButton) {
+                    await this.page.evaluate((button) => {
+                        button.click();
+                    }, submitButton);
+                    console.log('Кнопка отправки найдена через evaluate');
+                    submitFound = true;
+                }
+            }
+            
+            if (!submitFound) {
+                // Последняя попытка - поиск по тексту
+                const foundButton = await this.page.evaluate(() => {
+                    const allElements = document.querySelectorAll('*');
+                    for (let element of allElements) {
+                        const text = element.textContent?.trim().toLowerCase();
+                        if (text === 'отправить' || text === 'submit' || text === 'send') {
+                            const hasClickHandler = element.onclick || 
+                                                  element.getAttribute('role') === 'button' ||
+                                                  element.tagName === 'BUTTON' ||
+                                                  element.type === 'submit';
+                            if (hasClickHandler) {
+                                element.click();
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                });
+                
+                if (foundButton) {
+                    console.log('Кнопка отправки найдена по тексту');
                     submitFound = true;
                 }
             }
