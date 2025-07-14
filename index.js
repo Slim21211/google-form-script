@@ -10,7 +10,7 @@ class GoogleFormAutomation {
     async init() {
         // Настройки для серверной среды (Railway)
         const launchOptions = {
-            headless: true, // Изменено на true для сервера
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -28,57 +28,9 @@ class GoogleFormAutomation {
             protocolTimeout: 60000
         };
 
-        // Поиск исполняемого файла Chrome/Chromium
-        const fs = require('fs');
-        const { execSync } = require('child_process');
+        // В Docker образе Puppeteer браузер уже настроен
+        console.log('Запускаем браузер...');
         
-        try {
-            // Сначала пробуем найти через which
-            const chromePath = execSync('which chromium || which google-chrome || which chrome', { encoding: 'utf8' }).trim();
-            if (chromePath && fs.existsSync(chromePath)) {
-                launchOptions.executablePath = chromePath;
-                console.log(`Найден браузер: ${chromePath}`);
-            }
-        } catch (error) {
-            console.log('Браузер не найден через which, пробуем стандартные пути...');
-            
-            // Список возможных путей
-            const possiblePaths = [
-                '/usr/bin/chromium',
-                '/usr/bin/chromium-browser',
-                '/usr/bin/google-chrome',
-                '/usr/bin/google-chrome-stable',
-                '/nix/store/*/bin/chromium',
-                process.env.PUPPETEER_EXECUTABLE_PATH
-            ].filter(Boolean);
-            
-            for (const path of possiblePaths) {
-                if (path.includes('*')) {
-                    // Для путей с wildcards используем glob
-                    try {
-                        const globPath = execSync(`ls ${path} 2>/dev/null | head -1`, { encoding: 'utf8' }).trim();
-                        if (globPath && fs.existsSync(globPath)) {
-                            launchOptions.executablePath = globPath;
-                            console.log(`Найден браузер: ${globPath}`);
-                            break;
-                        }
-                    } catch (e) {
-                        continue;
-                    }
-                } else if (fs.existsSync(path)) {
-                    launchOptions.executablePath = path;
-                    console.log(`Найден браузер: ${path}`);
-                    break;
-                }
-            }
-        }
-
-        // Если браузер не найден, используем встроенный Puppeteer
-        if (!launchOptions.executablePath) {
-            console.log('Используем встроенный браузер Puppeteer');
-            delete launchOptions.executablePath;
-        }
-
         this.browser = await puppeteer.launch(launchOptions);
         this.page = await this.browser.newPage();
         
