@@ -296,6 +296,7 @@ class GoogleFormAutomation {
         console.log('Отправляем форму...');
         
         try {
+            // Ищем кнопку отправки
             const submitSelectors = [
                 'div[role="button"][jsname="M2UYVd"]',
                 'div[role="button"]',
@@ -307,7 +308,7 @@ class GoogleFormAutomation {
             let submitFound = false;
             
             for (const selector of submitSelectors) {
-                const elements = await this.page.$(selector);
+                const elements = await this.page.$$(selector);
                 
                 for (let element of elements) {
                     const text = await element.evaluate(el => el.textContent?.trim());
@@ -317,6 +318,7 @@ class GoogleFormAutomation {
                         
                         console.log(`Найдена кнопка отправки: "${text}"`);
                         await element.click();
+                        console.log('Кнопка отправки найдена и нажата');
                         submitFound = true;
                         break;
                     }
@@ -326,49 +328,12 @@ class GoogleFormAutomation {
             }
             
             if (!submitFound) {
-                // Альтернативный подход без XPath
-                const submitButton = await this.page.evaluate(() => {
-                    const buttons = document.querySelectorAll('div[role="button"], span[role="button"]');
-                    for (let button of buttons) {
-                        const text = button.textContent?.trim().toLowerCase();
-                        if (text && (text.includes('отправить') || text.includes('submit') || text.includes('send'))) {
-                            return button;
-                        }
-                    }
-                    return null;
-                });
+                // Пробуем через XPath
+                const xpathSubmit = await this.page.$x("//div[contains(text(), 'Отправить')] | //span[contains(text(), 'Отправить')] | //div[contains(text(), 'Submit')] | //span[contains(text(), 'Submit')]");
                 
-                if (submitButton) {
-                    await this.page.evaluate((button) => {
-                        button.click();
-                    }, submitButton);
-                    console.log('Кнопка отправки найдена через evaluate');
-                    submitFound = true;
-                }
-            }
-            
-            if (!submitFound) {
-                // Последняя попытка - поиск по тексту
-                const foundButton = await this.page.evaluate(() => {
-                    const allElements = document.querySelectorAll('*');
-                    for (let element of allElements) {
-                        const text = element.textContent?.trim().toLowerCase();
-                        if (text === 'отправить' || text === 'submit' || text === 'send') {
-                            const hasClickHandler = element.onclick || 
-                                                  element.getAttribute('role') === 'button' ||
-                                                  element.tagName === 'BUTTON' ||
-                                                  element.type === 'submit';
-                            if (hasClickHandler) {
-                                element.click();
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                });
-                
-                if (foundButton) {
-                    console.log('Кнопка отправки найдена по тексту');
+                if (xpathSubmit.length > 0) {
+                    await xpathSubmit[0].click();
+                    console.log('Кнопка отправки найдена через XPath и нажата');
                     submitFound = true;
                 }
             }
@@ -377,6 +342,7 @@ class GoogleFormAutomation {
                 throw new Error('Кнопка отправки не найдена');
             }
             
+            // Ждем отправки формы
             await this.delay(5000);
             
         } catch (error) {
